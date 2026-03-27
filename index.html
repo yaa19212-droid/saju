@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>사주팔자 분석기</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Noto Sans KR',sans-serif; background:#1a1a2e; color:#e0e0e0; min-height:100vh; padding:16px; }
+.container { max-width:480px; margin:0 auto; }
+h1 { text-align:center; font-size:1.4em; margin-bottom:12px; background:linear-gradient(135deg,#667eea,#764ba2);
+     -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.input-section { background:#16213e; border-radius:12px; padding:16px; margin-bottom:16px; }
+.input-row { display:flex; gap:8px; margin-bottom:10px; align-items:center; }
+.input-row label { font-size:0.85em; color:#a0a0c0; min-width:40px; }
+.input-row select, .input-row input { background:#0f3460; border:1px solid #334; color:#e0e0e0;
+  border-radius:6px; padding:6px 8px; font-size:0.9em; flex:1; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>✦ 사주팔자 분석기 ✦</h1>
+<div class="input-section">
+  <div class="input-row">
+    <label>생년</label>
+    <input type="number" id="year" min="1950" max="2030" value="1990" />
+    <label>월</label>
+    <select id="month"></select>
+    <label>일</label>
+    <select id="day"></select>
+  </div>
+  <div class="input-row">
+    <label>시간</label>
+    <select id="hour"></select>
+    <label>분</label>
+    <select id="minute"></select>
+    <label>성별</label>
+    <select id="gender"><option value="m">남</option><option value="f">여</option></select>
+  </div>
+  <div class="input-row">
+    <label>지역</label>
+    <select id="region">
+      <option value="127">서울 (127°)</option>
+      <option value="129" selected>부산 (129°)</option>
+      <option value="126">인천 (126°)</option>
+      <option value="128">강릉 (128°)</option>
+      <option value="127">대전 (127°)</option>
+      <option value="129">울산 (129°)</option>
+      <option value="127">광주 (127°)</option>
+      <option value="0">보정 안 함</option>
+    </select>
+  </div>
+  <button id="btn" onclick="analyze()">분석하기</button>
+</div>
+<div id="result" style="display:none"></div>
+</div>
+
+<style>
+#btn { width:100%; padding:10px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff;
+  border:none; border-radius:8px; font-size:1em; cursor:pointer; font-weight:bold; }
+#btn:hover { opacity:0.9; }
+#btn:active { transform:scale(0.98); }
+.result-card { background:#16213e; border-radius:12px; padding:16px; margin-bottom:12px; }
+.result-card h2 { font-size:1.05em; color:#667eea; margin-bottom:10px; border-bottom:1px solid #334; padding-bottom:6px; }
+.saju-table { width:100%; border-collapse:collapse; text-align:center; }
+.saju-table th,.saju-table td { padding:8px 4px; border:1px solid #334; font-size:0.9em; }
+.saju-table th { background:#0f3460; color:#a0a0c0; font-weight:normal; }
+</style>
+<style>
+.ohaeng-bar { display:flex; align-items:center; margin:4px 0; }
+.ohaeng-label { width:30px; font-size:0.85em; }
+.ohaeng-track { flex:1; height:20px; background:#0f3460; border-radius:4px; overflow:hidden; margin:0 8px; }
+.ohaeng-fill { height:100%; border-radius:4px; transition:width 0.5s; display:flex; align-items:center; justify-content:center; font-size:0.75em; }
+.ohaeng-count { width:24px; text-align:right; font-size:0.85em; }
+.el-wood .ohaeng-fill { background:#4caf50; }
+.el-fire .ohaeng-fill { background:#f44336; }
+.el-earth .ohaeng-fill { background:#ff9800; }
+.el-metal .ohaeng-fill { background:#e0e0e0; color:#333; }
+.el-water .ohaeng-fill { background:#2196f3; }
+.cheongan { color:#ffcc80; font-weight:bold; font-size:1.1em; }
+.jiji { color:#80cbc4; font-weight:bold; font-size:1.1em; }
+.tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:0.78em; margin:1px; }
+.tag-wood { background:#1b5e20; color:#a5d6a7; }
+.tag-fire { background:#b71c1c; color:#ef9a9a; }
+.tag-earth { background:#e65100; color:#ffcc80; }
+.tag-metal { background:#424242; color:#e0e0e0; }
+.tag-water { background:#0d47a1; color:#90caf9; }
+.sipseong-row { display:flex; justify-content:space-around; text-align:center; margin:8px 0; }
+.sipseong-item { flex:1; }
+.sipseong-item .pos { font-size:0.75em; color:#a0a0c0; }
+.sipseong-item .val { font-size:0.95em; font-weight:bold; margin-top:2px; }
+.copy-area { background:#0a0a1a; border:1px solid #334; border-radius:8px; padding:12px;
+  font-size:0.82em; line-height:1.6; white-space:pre-wrap; margin-top:8px; }
+.copy-btn { margin-top:8px; padding:6px 16px; background:#334; color:#e0e0e0; border:none;
+  border-radius:6px; cursor:pointer; font-size:0.82em; }
+.copy-btn:hover { background:#445; }
+</style>
+<script type="module">
+import { calculateSaju, calculateSajuSimple } from 'https://cdn.jsdelivr.net/npm/@fullstackfamily/manseryeok/+esm';
+
+const CG = ['갑','을','병','정','무','기','경','신','임','계'];
+const JJ = ['자','축','인','묘','진','사','오','미','신','유','술','해'];
+const CG_OH = {'갑':'목','을':'목','병':'화','정':'화','무':'토','기':'토','경':'금','신':'금','임':'수','계':'수'};
+const JJ_OH = {'자':'수','축':'토','인':'목','묘':'목','진':'토','사':'화','오':'화','미':'토','신':'금','유':'금','술':'토','해':'수'};
+const CG_YY = {'갑':'양','을':'음','병':'양','정':'음','무':'양','기':'음','경':'양','신':'음','임':'양','계':'음'};
+const OH_COLOR = {'목':'wood','화':'fire','토':'earth','금':'metal','수':'water'};
+const OH_HANJA = {'목':'木','화':'火','토':'土','금':'金','수':'水'};
+
+// 지장간 (주기)
+const JIJANGGAN = {
+  '자':['계'], '축':['기','계','신'], '인':['갑','병','무'], '묘':['을'],
+  '진':['무','을','계'], '사':['병','무','경'], '오':['정','기'], '미':['기','정','을'],
+  '신':['경','임','무'], '유':['신'], '술':['무','신','정'], '해':['임','갑']
+};
+
+// 십성 계산
+const OH_ORDER = ['목','화','토','금','수'];
+function getSipseong(ilgan, target) {
+  const myOH = CG_OH[ilgan], tgOH = CG_OH[target];
+  const myIdx = OH_ORDER.indexOf(myOH), tgIdx = OH_ORDER.indexOf(tgOH);
+  const sameYY = CG_YY[ilgan] === CG_YY[target];
+  if (myIdx===tgIdx) return sameYY?'비견':'겁재';
+  if ((myIdx+1)%5===tgIdx) return sameYY?'식신':'상관';
+  if ((myIdx+2)%5===tgIdx) return sameYY?'편재':'정재';
+  if ((myIdx+3)%5===tgIdx) return sameYY?'편관':'정관';
+  if ((myIdx+4)%5===tgIdx) return sameYY?'편인':'정인';
+}
+// 초기화
+function init() {
+  const mSel=document.getElementById('month'), dSel=document.getElementById('day'), hSel=document.getElementById('hour'), minSel=document.getElementById('minute');
+  for(let i=1;i<=12;i++) mSel.add(new Option(i+'월',i));
+  for(let i=1;i<=31;i++) dSel.add(new Option(i+'일',i));
+  for(let i=0;i<24;i++) hSel.add(new Option(i+'시',i));
+  for(let i=0;i<60;i+=5) minSel.add(new Option(String(i).padStart(2,'0')+'분',i));
+  mSel.value=5; dSel.value=15; hSel.value=14; minSel.value=30;
+
+  // URL 파라미터 처리
+  const p=new URLSearchParams(location.search);
+  if(p.get('y')) document.getElementById('year').value=p.get('y');
+  if(p.get('m')) mSel.value=p.get('m');
+  if(p.get('d')) dSel.value=p.get('d');
+  if(p.get('h')) hSel.value=p.get('h');
+  if(p.get('min')) minSel.value=p.get('min');
+  if(p.get('g')) document.getElementById('gender').value=p.get('g');
+  if(p.get('lon')) document.getElementById('region').value=p.get('lon');
+  if(p.get('auto')==='1') setTimeout(()=>analyze(),300);
+}
+
+window.analyze = function() {
+  const y=+document.getElementById('year').value;
+  const m=+document.getElementById('month').value;
+  const d=+document.getElementById('day').value;
+  const h=+document.getElementById('hour').value;
+  const min=+document.getElementById('minute').value;
+  const g=document.getElementById('gender').value;
+  const lon=+document.getElementById('region').value;
+
+  let saju;
+  const useCorrection = lon > 0;
+  try {
+    if(useCorrection) {
+      saju=calculateSaju(y,m,d,h,min,{longitude:lon,applyTimeCorrection:true});
+    } else {
+      saju=calculateSajuSimple(y,m,d,h);
+    }
+  }
+  catch(e) { document.getElementById('result').innerHTML=`<div class="result-card"><p>오류: ${e.message}</p></div>`; 
+             document.getElementById('result').style.display='block'; return; }
+  const pillars = [
+    {name:'년주',val:saju.yearPillar}, {name:'월주',val:saju.monthPillar},
+    {name:'일주',val:saju.dayPillar}, {name:'시주',val:saju.hourPillar}
+  ];
+  const cg4=pillars.map(p=>p.val[0]); // 천간 4개
+  const jj4=pillars.map(p=>p.val[1]); // 지지 4개
+  const ilgan=cg4[2]; // 일간
+
+  // 오행 분포
+  const ohCount={목:0,화:0,토:0,금:0,수:0};
+  cg4.forEach(c=>ohCount[CG_OH[c]]++);
+  jj4.forEach(j=>ohCount[JJ_OH[j]]++);
+  const maxOH=Math.max(...Object.values(ohCount));
+
+  // 십성
+  const sipseongs=[getSipseong(ilgan,cg4[0]),getSipseong(ilgan,cg4[1]),'본인',getSipseong(ilgan,cg4[3])];
+
+  // 지지 십성 (주기 기준)
+  const jjSipseongs=jj4.map(j=>{const main=JIJANGGAN[j][0]; return getSipseong(ilgan,main);});
+
+  let html='';
+
+  // 기본 정보
+  html+=`<div class="result-card"><h2>기본 정보</h2>
+  <p style="font-size:0.88em">양력 ${y}년 ${m}월 ${d}일 ${h}시 ${min}분 (${g==='m'?'남':'여'})</p>`;
+  if(saju.isTimeCorrected) html+=`<p style="font-size:0.82em;color:#ffcc80">⏱ 진태양시 보정: ${saju.correctedTime.hour}시 ${saju.correctedTime.minute}분 (경도 ${lon}°)</p>`;
+  html+=`<p style="font-size:0.95em;margin-top:6px"><b>${pillars.map(p=>p.val).join(' ')}</b></p></div>`;
+  // 사주 원국 테이블
+  html+=`<div class="result-card"><h2>사주 원국</h2>
+  <table class="saju-table"><tr><th></th><th>년주</th><th>월주</th><th>일주</th><th>시주</th></tr>
+  <tr><td>천간</td>${cg4.map(c=>`<td><span class="cheongan">${c}</span><br><span class="tag tag-${OH_COLOR[CG_OH[c]]}">${CG_OH[c]}${OH_HANJA[CG_OH[c]]} ${CG_YY[c]}</span></td>`).join('')}</tr>
+  <tr><td>지지</td>${jj4.map(j=>`<td><span class="jiji">${j}</span><br><span class="tag tag-${OH_COLOR[JJ_OH[j]]}">${JJ_OH[j]}${OH_HANJA[JJ_OH[j]]}</span></td>`).join('')}</tr>
+  <tr><td>십성</td>${sipseongs.map((s,i)=>`<td style="font-size:0.85em">${i===2?'<b>일간</b>':s}</td>`).join('')}</tr>
+  </table></div>`;
+
+  // 오행 분포
+  html+=`<div class="result-card"><h2>오행 분포</h2>`;
+  for(const [oh,cnt] of Object.entries(ohCount)){
+    const pct=maxOH>0?(cnt/8*100):0;
+    html+=`<div class="ohaeng-bar el-${OH_COLOR[oh]}">
+      <span class="ohaeng-label">${oh}${OH_HANJA[oh]}</span>
+      <div class="ohaeng-track"><div class="ohaeng-fill" style="width:${pct}%">${cnt>0?cnt:''}</div></div>
+      <span class="ohaeng-count">${cnt}개</span></div>`;
+  }
+  const strong=Object.entries(ohCount).filter(([,v])=>v===maxOH).map(([k])=>k).join(', ');
+  const weak=Object.entries(ohCount).filter(([,v])=>v===0).map(([k])=>k);
+  html+=`<p style="margin-top:8px;font-size:0.85em">강한 오행: <b>${strong}</b>${weak.length?` | 부족한 오행: <b>${weak.join(', ')}</b>`:''}</p></div>`;
+  // 지장간 정보
+  html+=`<div class="result-card"><h2>지장간 (숨은 천간)</h2>
+  <div class="sipseong-row">${jj4.map((j,i)=>`<div class="sipseong-item">
+    <div class="pos">${pillars[i].name} ${j}(${JJ_OH[j]})</div>
+    <div class="val">${JIJANGGAN[j].map(c=>`<span class="tag tag-${OH_COLOR[CG_OH[c]]}">${c}</span>`).join(' ')}</div>
+    <div style="font-size:0.75em;color:#a0a0c0;margin-top:2px">${jjSipseongs[i]}</div>
+  </div>`).join('')}</div></div>`;
+
+  // 복사용 텍스트
+  const corrInfo = saju.isTimeCorrected ? `\n진태양시 보정: ${saju.correctedTime.hour}시 ${saju.correctedTime.minute}분 (경도 ${lon}°)` : '';
+  const copyText=`[사주 분석 결과]
+양력: ${y}년 ${m}월 ${d}일 ${h}시 ${min}분 (${g==='m'?'남':'여'})${corrInfo}
+사주: ${pillars.map(p=>p.val).join(' ')}
+천간: ${cg4.join(' ')} | 지지: ${jj4.join(' ')}
+오행: 목${ohCount.목} 화${ohCount.화} 토${ohCount.토} 금${ohCount.금} 수${ohCount.수}
+일간: ${ilgan}(${CG_OH[ilgan]})
+십성: ${sipseongs.join(' / ')}
+강: ${strong} | 약: ${weak.length?weak.join(','):'없음'}`;
+
+  html+=`<div class="result-card"><h2>📋 AI에게 전달하기</h2>
+  <p style="font-size:0.82em;color:#a0a0c0;margin-bottom:6px">아래 내용을 복사하여 AI에게 붙여넣으면 상세 해석을 받을 수 있습니다.</p>
+  <div class="copy-area" id="copyText">${copyText}</div>
+  <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('copyText').innerText).then(()=>this.textContent='✓ 복사됨!')">복사하기</button></div>`;
+
+  document.getElementById('result').innerHTML=html;
+  document.getElementById('result').style.display='block';
+};
+
+init();
+</script>
+</body>
+</html>
