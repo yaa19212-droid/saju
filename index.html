@@ -33,7 +33,7 @@ h1 { text-align:center; font-size:1.4em; margin-bottom:12px; background:linear-g
     <label>시간</label>
     <select id="hour"></select>
     <label>분</label>
-    <select id="minute"></select>
+    <input type="number" id="minute" min="0" max="59" value="30" />
     <label>성별</label>
     <select id="gender"><option value="m">남</option><option value="f">여</option></select>
   </div>
@@ -127,12 +127,11 @@ function getSipseong(ilgan, target) {
 }
 // 초기화
 function init() {
-  const mSel=document.getElementById('month'), dSel=document.getElementById('day'), hSel=document.getElementById('hour'), minSel=document.getElementById('minute');
+  const mSel=document.getElementById('month'), dSel=document.getElementById('day'), hSel=document.getElementById('hour');
   for(let i=1;i<=12;i++) mSel.add(new Option(i+'월',i));
   for(let i=1;i<=31;i++) dSel.add(new Option(i+'일',i));
   for(let i=0;i<24;i++) hSel.add(new Option(i+'시',i));
-  for(let i=0;i<60;i+=5) minSel.add(new Option(String(i).padStart(2,'0')+'분',i));
-  mSel.value=5; dSel.value=15; hSel.value=14; minSel.value=30;
+  mSel.value=5; dSel.value=15; hSel.value=14;
 
   // URL 파라미터 처리
   const p=new URLSearchParams(location.search);
@@ -140,7 +139,7 @@ function init() {
   if(p.get('m')) mSel.value=p.get('m');
   if(p.get('d')) dSel.value=p.get('d');
   if(p.get('h')) hSel.value=p.get('h');
-  if(p.get('min')) minSel.value=p.get('min');
+  if(p.get('min')) document.getElementById('minute').value=p.get('min');
   if(p.get('g')) document.getElementById('gender').value=p.get('g');
   if(p.get('lon')) document.getElementById('region').value=p.get('lon');
   if(p.get('auto')==='1') setTimeout(()=>analyze(),300);
